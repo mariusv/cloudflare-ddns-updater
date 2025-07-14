@@ -42,7 +42,26 @@ class CloudflareDDNS:
             
         try:
             with open(self.config_file, 'r') as f:
-                return json.load(f)
+                config = json.load(f)
+                
+            # Support both old single-domain and new multi-domain format
+            if 'domain' in config:
+                # Convert old format to new format internally
+                logger.info("Using single-domain configuration format")
+                config = {
+                    'api_token': config['api_token'],
+                    'domains': [{
+                        'domain': config['domain'],
+                        'zone_id': config['zone_id'],
+                        'subdomains': config['subdomains'],
+                        'ttl': config.get('ttl', 120),
+                        'proxied': config.get('proxied', False)
+                    }]
+                }
+            else:
+                logger.info("Using multi-domain configuration format")
+                
+            return config
         except json.JSONDecodeError as e:
             logger.exception(f"Invalid JSON in config file: {e}")
             sys.exit(1)
@@ -76,11 +95,11 @@ class CloudflareDDNS:
         logger.error("Failed to get public IP from all services")
         return None
         
-    def get_dns_record(self, subdomain: str) -> Optional[Tuple[str, str]]:
+    def get_dns_record(self, zone_id: str, domain: str, subdomain: str) -> Optional[Tuple[str, str]]:
         """Get DNS record ID and current IP for a subdomain"""
-        url = f"{self.api_base}/zones/{self.config['zone_id']}/dns_records"
+        url = f"{self.api_base}/zones/{zone_id}/dns_records"
         params = {
-            "name": f"{subdomain}.{self.config['domain']}",
+            "name": f"{subdomain}.{domain}",
             "type": "A"
         }
         
@@ -93,22 +112,22 @@ class CloudflareDDNS:
                 record = data["result"][0]
                 return record["id"], record["content"]
             else:
-                logger.error(f"DNS record not found for {subdomain}.{self.config['domain']}")
+                logger.error(f"DNS record not found for {subdomain}.{domain}")
                 return None
                 
         except requests.exceptions.RequestException as e:
-            logger.exception(f"Failed to get DNS record for {subdomain}: {e}")
+            logger.exception(f"Failed to get DNS record for {subdomain}.{domain}: {e}")
             return None
             
-    def update_dns_record(self, subdomain: str, record_id: str, ip: str) -> bool:
+    def update_dns_record(self, zone_id: str, domain: str, subdomain: str, record_id: str, ip: str, ttl: int, proxied: bool) -> bool:
         """Update DNS A record for subdomain"""
-        url = f"{self.api_base}/zones/{self.config['zone_id']}/dns_records/{record_id}"
+        url = f"{self.api_base}/zones/{zone_id}/dns_records/{record_id}"
         data = {
             "type": "A",
-            "name": f"{subdomain}.{self.config['domain']}",
+            "name": f"{subdomain}.{domain}",
             "content": ip,
-            "ttl": self.config.get("ttl", 120),
-            "proxied": self.config.get("proxied", False)
+            "ttl": ttl,
+            "proxied": proxied
         }
         
         try:
@@ -117,14 +136,14 @@ class CloudflareDDNS:
             
             result = response.json()
             if result["success"]:
-                logger.info(f"Successfully updated {subdomain}.{self.config['domain']} to {ip}")
+                logger.info(f"Successfully updated {subdomain}.{domain} to {ip}")
                 return True
             else:
-                logger.error(f"Failed to update {subdomain}: {result.get('errors', 'Unknown error')}")
+                logger.error(f"Failed to update {subdomain}.{domain}: {result.get('errors', 'Unknown error')}")
                 return False
                 
         except requests.exceptions.RequestException as e:
-            logger.exception(f"Failed to update DNS record for {subdomain}: {e}")
+            logger.exception(f"Failed to update DNS record for {subdomain}.{domain}: {e}")
             return False
             
     def run(self):
@@ -148,65 +167,60 @@ class CloudflareDDNS:
             except Exception as e:
                 logger.warning(f"Failed to read cached IP: {e}")
         
-        # Process each subdomain
-        updates_needed = []
-        subdomains = self.config["subdomains"]
+        # Process each domain
+        total_updates_needed = 0
+        total_success = 0
         
-        for i, subdomain in enumerate(subdomains):
-            record_info = self.get_dns_record(subdomain)
+        for domain_config in self.config['domains']:
+            domain = domain_config['domain']
+            zone_id = domain_config['zone_id']
+            subdomains = domain_config['subdomains']
+            ttl = domain_config.get('ttl', 120)
+            proxied = domain_config.get('proxied', False)
             
-            if not record_info:
-                logger.warning(f"Skipping {subdomain} - record not found")
-                continue
+            logger.info(f"Processing domain: {domain}")
+            
+            # Process each subdomain
+            for i, subdomain in enumerate(subdomains):
+                record_info = self.get_dns_record(zone_id, domain, subdomain)
                 
-            record_id, current_dns_ip = record_info
+                if not record_info:
+                    logger.warning(f"Skipping {subdomain}.{domain} - record not found")
+                    continue
+                    
+                record_id, current_dns_ip = record_info
+                
+                # Check if update is needed
+                if current_dns_ip == current_ip:
+                    logger.info(f"{subdomain}.{domain} already has correct IP ({current_ip})")
+                else:
+                    logger.info(f"{subdomain}.{domain} needs update: {current_dns_ip} -> {current_ip}")
+                    total_updates_needed += 1
+                    
+                    if self.update_dns_record(zone_id, domain, subdomain, record_id, current_ip, ttl, proxied):
+                        total_success += 1
+                
+                # Rate limiting between API calls
+                if i < len(subdomains) - 1:
+                    time.sleep(1)
             
-            # Check if update is needed by comparing with actual DNS value
-            if current_dns_ip == current_ip:
-                logger.info(f"{subdomain}.{self.config['domain']} already has correct IP ({current_ip})")
-            else:
-                logger.info(f"{subdomain}.{self.config['domain']} needs update: {current_dns_ip} -> {current_ip}")
-                updates_needed.append((subdomain, record_id))
-            
-            # Rate limiting between API calls (except for the last one)
-            if i < len(subdomains) - 1:
-                time.sleep(1)
+            # Rate limiting between domains
+            time.sleep(1)
         
-        # Perform updates if needed
-        if not updates_needed:
-            logger.info("All DNS records are already up to date")
-            # Still update cache file even if no DNS updates were needed
-            if current_ip != last_cached_ip:
-                try:
-                    cache_file.write_text(current_ip)
-                except Exception as e:
-                    logger.warning(f"Failed to update cache file: {e}")
-            return
-        
-        # Update records that need it
-        success_count = 0
-        total_updates = len(updates_needed)
-        
-        for i, (subdomain, record_id) in enumerate(updates_needed):
-            if self.update_dns_record(subdomain, record_id, current_ip):
-                success_count += 1
-            
-            # Rate limiting between update calls (except for the last one)
-            if i < total_updates - 1:
-                time.sleep(1)
-        
-        # Update cache file if any updates succeeded
-        if success_count > 0:
+        # Update cache file if any updates succeeded or IP changed
+        if total_success > 0 or (total_updates_needed == 0 and current_ip != last_cached_ip):
             try:
                 cache_file.write_text(current_ip)
             except Exception as e:
                 logger.warning(f"Failed to update cache file: {e}")
         
         # Report results
-        if success_count == total_updates:
-            logger.info(f"Successfully updated all {success_count} DNS records")
+        if total_updates_needed == 0:
+            logger.info("All DNS records across all domains are already up to date")
+        elif total_success == total_updates_needed:
+            logger.info(f"Successfully updated all {total_success} DNS records")
         else:
-            logger.warning(f"Updated {success_count}/{total_updates} DNS records")
+            logger.warning(f"Updated {total_success}/{total_updates_needed} DNS records")
             
 
 if __name__ == "__main__":

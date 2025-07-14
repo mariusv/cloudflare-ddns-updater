@@ -49,6 +49,8 @@ sudo make install
 
 ## Configuration
 
+### Single Domain Setup
+
 1. Copy the example configuration:
    ```bash
    sudo cp /usr/share/doc/cloudflare-ddns-updater/config.example.json /etc/cloudflare-ddns/config.json
@@ -74,6 +76,34 @@ sudo make install
        "proxied": false
    }
    ```
+
+### Multiple Domain Setup
+
+You can use the same script with multiple domains in one config file:
+
+```json
+{
+    "api_token": "YOUR_CLOUDFLARE_API_TOKEN",
+    "domains": [
+        {
+            "domain": "example.com",
+            "zone_id": "ZONE_ID_FOR_EXAMPLE_COM",
+            "subdomains": ["vpn", "home", "server"],
+            "ttl": 120,
+            "proxied": false
+        },
+        {
+            "domain": "another-domain.org",
+            "zone_id": "ZONE_ID_FOR_ANOTHER_DOMAIN",
+            "subdomains": ["mail", "ftp", "backup"],
+            "ttl": 300,
+            "proxied": true
+        }
+    ]
+}
+```
+
+The script automatically detects which format you're using and handles both seamlessly!
 
 ### Getting Cloudflare Credentials
 

@@ -1,0 +1,19 @@
+{
+    "api_token": "YOUR_CLOUDFLARE_API_TOKEN",
+    "domains": [
+        {
+            "domain": "example.com",
+            "zone_id": "ZONE_ID_FOR_EXAMPLE_COM",
+            "subdomains": ["vpn", "home", "server"],
+            "ttl": 120,
+            "proxied": false
+        },
+        {
+            "domain": "another-domain.org",
+            "zone_id": "ZONE_ID_FOR_ANOTHER_DOMAIN",
+            "subdomains": ["mail", "ftp", "backup"],
+            "ttl": 300,
+            "proxied": true
+        }
+    ]
+}
