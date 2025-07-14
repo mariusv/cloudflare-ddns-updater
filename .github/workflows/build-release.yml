@@ -36,11 +36,18 @@ jobs:
         # Set version from tag or use default
         VERSION=${GITHUB_REF#refs/tags/v}
         if [ "$VERSION" = "$GITHUB_REF" ]; then
-          VERSION="1.0.0"
+          VERSION="0.1.0"
         fi
         
-        # Update changelog with version
-        dch -v ${VERSION} -D unstable "Release version ${VERSION}"
+        # Set email for changelog
+        export DEBEMAIL="myself@mariusv.com"
+        export DEBFULLNAME="Marius Voila"
+        
+        # Only update changelog if version differs
+        CURRENT_VERSION=$(dpkg-parsechangelog -S Version)
+        if [ "$CURRENT_VERSION" != "$VERSION" ]; then
+          dch -v ${VERSION} -D unstable "Release version ${VERSION}"
+        fi
         
         # Build the package
         dpkg-buildpackage -us -uc -b
