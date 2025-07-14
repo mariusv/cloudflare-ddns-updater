@@ -3,6 +3,9 @@
 %:
 	dh $@ --with python3
 
+override_dh_auto_build:
+	# Skip auto build - we don't need to build anything
+
 override_dh_auto_install:
 	# Install the main script
 	install -D -m 755 src/cloudflare-ddns.py debian/cloudflare-ddns-updater/usr/bin/cloudflare-ddns
