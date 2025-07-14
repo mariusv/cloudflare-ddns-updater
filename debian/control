@@ -1,0 +1,23 @@
+Source: cloudflare-ddns-updater
+Section: net
+Priority: optional
+Maintainer: Marius Voila <myself@mariusv.com>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all
+Standards-Version: 4.6.0
+Homepage: https://github.com/mariusv/cloudflare-ddns-updater
+Rules-Requires-Root: no
+
+Package: cloudflare-ddns-updater
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3-requests, systemd
+Description: Dynamic DNS updater for Cloudflare
+ A lightweight service that automatically updates Cloudflare DNS A records
+ when your public IP address changes. Perfect for home servers, VPNs, and
+ other services behind dynamic IP addresses.
+ .
+ Features:
+  - Automatic IP detection from multiple sources
+  - Smart updates only when IP changes
+  - Systemd timer for regular checks
+  - Secure service with minimal privileges
+  - Comprehensive logging

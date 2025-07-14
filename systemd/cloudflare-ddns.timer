@@ -1,0 +1,19 @@
+[Unit]
+Description=Run Cloudflare DDNS updater every 5 minutes
+Documentation=https://github.com/mariusv/cloudflare-ddns-updater
+
+[Timer]
+# Run 2 minutes after boot
+OnBootSec=2min
+
+# Then run every 5 minutes
+OnUnitActiveSec=5min
+
+# Run immediately if we missed a scheduled run due to the system being off
+Persistent=true
+
+# Randomize the timer by up to 30 seconds to prevent thundering herd
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

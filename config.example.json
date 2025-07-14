@@ -1,0 +1,12 @@
+{
+    "api_token": "YOUR_CLOUDFLARE_API_TOKEN",
+    "zone_id": "YOUR_CLOUDFLARE_ZONE_ID",
+    "domain": "example.com",
+    "subdomains": [
+        "vpn",
+        "home",
+        "server"
+    ],
+    "ttl": 120,
+    "proxied": false
+}

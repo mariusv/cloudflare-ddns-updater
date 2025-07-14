@@ -1,0 +1,29 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create cache directory with proper permissions
+        if [ ! -d /var/cache/cloudflare-ddns ]; then
+            mkdir -p /var/cache/cloudflare-ddns
+            chmod 755 /var/cache/cloudflare-ddns
+        fi
+
+        # Reload systemd
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
+        fi
+
+        echo "Cloudflare DDNS Updater installed successfully!"
+        echo ""
+        echo "Next steps:"
+        echo "1. Copy the example config: sudo cp /usr/share/doc/cloudflare-ddns-updater/config.example.json /etc/cloudflare-ddns/config.json"
+        echo "2. Edit the config: sudo nano /etc/cloudflare-ddns/config.json"
+        echo "3. Enable the service: sudo systemctl enable --now cloudflare-ddns.timer"
+        echo ""
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

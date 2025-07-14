@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python3
+
+override_dh_auto_install:
+	# Install the main script
+	install -D -m 755 src/cloudflare-ddns.py debian/cloudflare-ddns-updater/usr/bin/cloudflare-ddns
+	
+	# Install systemd units
+	install -D -m 644 systemd/cloudflare-ddns.service debian/cloudflare-ddns-updater/lib/systemd/system/cloudflare-ddns.service
+	install -D -m 644 systemd/cloudflare-ddns.timer debian/cloudflare-ddns-updater/lib/systemd/system/cloudflare-ddns.timer
+	
+	# Install example config
+	install -D -m 644 config.example.json debian/cloudflare-ddns-updater/usr/share/doc/cloudflare-ddns-updater/config.example.json
+	
+	# Create directories
+	install -d -m 755 debian/cloudflare-ddns-updater/etc/cloudflare-ddns
+	install -d -m 755 debian/cloudflare-ddns-updater/var/cache/cloudflare-ddns
+
+override_dh_installsystemd:
+	dh_installsystemd --name=cloudflare-ddns cloudflare-ddns.timer

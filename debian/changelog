@@ -1,0 +1,8 @@
+cloudflare-ddns-updater (1.0.0) unstable; urgency=low
+
+  * Initial release
+  * Automatic IP detection and DNS updates
+  * Systemd timer integration
+  * Smart update logic to minimize API calls
+
+ -- Marius Voila <myself@mariusv.com>  Mon, 14 Jul 2025 15:00:00 +0000
