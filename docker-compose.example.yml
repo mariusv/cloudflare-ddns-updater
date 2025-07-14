@@ -6,8 +6,23 @@ services:
       - ./config.json:/etc/cloudflare-ddns/config.json:ro
       - cloudflare-ddns-cache:/var/cache/cloudflare-ddns
     restart: unless-stopped
-    # Run every 5 minutes
-    command: sh -c 'while true; do /usr/bin/cloudflare-ddns; sleep 300; done'
+    # Run every 5 minutes with proper signal handling
+    init: true
+    command: |
+      sh -c '
+      trap "exit 0" TERM
+      while true; do
+        /usr/bin/cloudflare-ddns
+        sleep 300 &
+        wait $$!
+      done
+      '
+    # Optional: Add logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   cloudflare-ddns-cache:
