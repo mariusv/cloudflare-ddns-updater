@@ -2,16 +2,20 @@
 
 A lightweight Dynamic DNS (DDNS) updater for Cloudflare DNS records. This service automatically updates your DNS A records when your public IP address changes, perfect for home servers, VPNs, and other services behind dynamic IPs.
 
+Whether you need to keep one subdomain updated or manage multiple domains with different subdomains, this service handles it all from a single configuration.
+
 ## Features
 
 - 🚀 Lightweight Python-based updater
+- 🌐 Supports single or multiple domains in one service
 - 🔒 Secure systemd service with hardening options
 - ⏱️ Configurable update intervals (default: 5 minutes)
 - 📊 Smart updates - only updates when IP actually changes
 - 🔍 Checks actual DNS values to avoid unnecessary API calls
 - 📝 Comprehensive logging to systemd journal
-- 🏗️ Easy installation via Debian package
+- 🏗️ Easy installation via Debian package or Docker
 - 🔄 Automatic startup on boot
+- 🛡️ Optional Cloudflare proxy support per domain
 
 ## Installation
 
@@ -49,7 +53,9 @@ sudo make install
 
 ## Configuration
 
-### Single Domain Setup
+The service can manage DNS records for a single domain or multiple domains from one configuration file.
+
+### Setting Up Your Configuration
 
 1. Copy the example configuration:
    ```bash
@@ -61,7 +67,9 @@ sudo make install
    sudo nano /etc/cloudflare-ddns/config.json
    ```
 
-3. Add your Cloudflare credentials:
+3. Configure your domain(s):
+
+   **For a single domain:**
    ```json
    {
        "api_token": "YOUR_CLOUDFLARE_API_TOKEN",
@@ -77,33 +85,37 @@ sudo make install
    }
    ```
 
-### Multiple Domain Setup
+   **For multiple domains:**
+   ```json
+   {
+       "api_token": "YOUR_CLOUDFLARE_API_TOKEN",
+       "domains": [
+           {
+               "domain": "example.com",
+               "zone_id": "ZONE_ID_FOR_EXAMPLE_COM",
+               "subdomains": ["vpn", "home", "server"],
+               "ttl": 120,
+               "proxied": false
+           },
+           {
+               "domain": "another-domain.org",
+               "zone_id": "ZONE_ID_FOR_ANOTHER_DOMAIN",
+               "subdomains": ["mail", "ftp", "backup"],
+               "ttl": 300,
+               "proxied": true
+           }
+       ]
+   }
+   ```
 
-You can use the same script with multiple domains in one config file:
+### Configuration Options
 
-```json
-{
-    "api_token": "YOUR_CLOUDFLARE_API_TOKEN",
-    "domains": [
-        {
-            "domain": "example.com",
-            "zone_id": "ZONE_ID_FOR_EXAMPLE_COM",
-            "subdomains": ["vpn", "home", "server"],
-            "ttl": 120,
-            "proxied": false
-        },
-        {
-            "domain": "another-domain.org",
-            "zone_id": "ZONE_ID_FOR_ANOTHER_DOMAIN",
-            "subdomains": ["mail", "ftp", "backup"],
-            "ttl": 300,
-            "proxied": true
-        }
-    ]
-}
-```
-
-The script automatically detects which format you're using and handles both seamlessly!
+- **api_token**: Your Cloudflare API token with DNS edit permissions
+- **zone_id**: The Zone ID for your domain (found in Cloudflare dashboard)
+- **domain**: Your domain name
+- **subdomains**: List of subdomains to keep updated
+- **ttl**: Time-to-live in seconds (minimum 120 for free plans)
+- **proxied**: Whether to proxy traffic through Cloudflare (default: false)
 
 ### Getting Cloudflare Credentials
 
