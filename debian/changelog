@@ -1,4 +1,4 @@
-cloudflare-ddns-updater (1.0.0) unstable; urgency=low
+cloudflare-ddns-updater (0.1.0) unstable; urgency=low
 
   * Initial release
   * Automatic IP detection and DNS updates
