@@ -54,8 +54,8 @@ class CloudflareDDNS:
                         'domain': config['domain'],
                         'zone_id': config['zone_id'],
                         'subdomains': config['subdomains'],
-                        'ttl': config.get('ttl', 120),
-                        'proxied': config.get('proxied', False)
+                        'ttl': config.get('ttl'),  # None if not specified
+                        'proxied': config.get('proxied')  # None if not specified
                     }]
                 }
             else:
@@ -95,8 +95,8 @@ class CloudflareDDNS:
         logger.error("Failed to get public IP from all services")
         return None
         
-    def get_dns_record(self, zone_id: str, domain: str, subdomain: str) -> Optional[Tuple[str, str]]:
-        """Get DNS record ID and current IP for a subdomain"""
+    def get_dns_record(self, zone_id: str, domain: str, subdomain: str) -> Optional[Tuple[str, str, bool, int]]:
+        """Get DNS record ID, current IP, proxy status, and TTL for a subdomain"""
         url = f"{self.api_base}/zones/{zone_id}/dns_records"
         params = {
             "name": f"{subdomain}.{domain}",
@@ -110,7 +110,7 @@ class CloudflareDDNS:
             data = response.json()
             if data["success"] and data["result"]:
                 record = data["result"][0]
-                return record["id"], record["content"]
+                return record["id"], record["content"], record["proxied"], record["ttl"]
             else:
                 logger.error(f"DNS record not found for {subdomain}.{domain}")
                 return None
@@ -175,8 +175,8 @@ class CloudflareDDNS:
             domain = domain_config['domain']
             zone_id = domain_config['zone_id']
             subdomains = domain_config['subdomains']
-            ttl = domain_config.get('ttl', 120)
-            proxied = domain_config.get('proxied', False)
+            ttl = domain_config.get('ttl')  # None if not specified
+            proxied = domain_config.get('proxied')  # None if not specified
             
             logger.info(f"Processing domain: {domain}")
             
@@ -188,7 +188,7 @@ class CloudflareDDNS:
                     logger.warning(f"Skipping {subdomain}.{domain} - record not found")
                     continue
                     
-                record_id, current_dns_ip = record_info
+                record_id, current_dns_ip, current_proxied, current_ttl = record_info
                 
                 # Check if update is needed
                 if current_dns_ip == current_ip:
@@ -197,7 +197,18 @@ class CloudflareDDNS:
                     logger.info(f"{subdomain}.{domain} needs update: {current_dns_ip} -> {current_ip}")
                     total_updates_needed += 1
                     
-                    if self.update_dns_record(zone_id, domain, subdomain, record_id, current_ip, ttl, proxied):
+                    # Use existing proxy status and TTL unless explicitly set in config
+                    # If proxied is not specified in config (None), keep existing value
+                    use_proxied = proxied if proxied is not None else current_proxied
+                    use_ttl = ttl if ttl is not None else current_ttl
+                    
+                    # Log if we're preserving existing settings
+                    if proxied is None:
+                        logger.debug(f"Preserving existing proxy setting ({current_proxied}) for {subdomain}.{domain}")
+                    if ttl is None:
+                        logger.debug(f"Preserving existing TTL ({current_ttl}) for {subdomain}.{domain}")
+                    
+                    if self.update_dns_record(zone_id, domain, subdomain, record_id, current_ip, use_ttl, use_proxied):
                         total_success += 1
                 
                 # Rate limiting between API calls
