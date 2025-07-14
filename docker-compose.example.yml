@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  cloudflare-ddns:
+    image: ghcr.io/mariusv/cloudflare-ddns-updater:latest
+    container_name: cloudflare-ddns
+    volumes:
+      - ./config.json:/etc/cloudflare-ddns/config.json:ro
+      - cloudflare-ddns-cache:/var/cache/cloudflare-ddns
+    restart: unless-stopped
+    # Run every 5 minutes
+    command: sh -c 'while true; do /usr/bin/cloudflare-ddns; sleep 300; done'
+
+volumes:
+  cloudflare-ddns-cache:

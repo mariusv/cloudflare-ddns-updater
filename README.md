@@ -15,7 +15,7 @@ A lightweight Dynamic DNS (DDNS) updater for Cloudflare DNS records. This servic
 
 ## Installation
 
-### From GitHub Releases (Recommended)
+### Option 1: Debian Package (Recommended for servers)
 
 1. Download the latest `.deb` package from [Releases](https://github.com/mariusv/cloudflare-ddns-updater/releases)
 2. Install the package:
@@ -24,7 +24,22 @@ A lightweight Dynamic DNS (DDNS) updater for Cloudflare DNS records. This servic
    sudo apt-get install -f  # Install any missing dependencies
    ```
 
-### From Source
+### Option 2: Docker Container
+
+```bash
+# Pull the image
+docker pull ghcr.io/mariusv/cloudflare-ddns-updater:latest
+
+# Run with your config
+docker run -v /path/to/config.json:/etc/cloudflare-ddns/config.json:ro ghcr.io/mariusv/cloudflare-ddns-updater
+
+# Or use docker-compose (see docker-compose.example.yml)
+wget https://raw.githubusercontent.com/mariusv/cloudflare-ddns-updater/main/docker-compose.example.yml
+# Edit docker-compose.example.yml and add your config.json
+docker-compose -f docker-compose.example.yml up -d
+```
+
+### Option 3: From Source
 
 ```bash
 git clone https://github.com/mariusv/cloudflare-ddns-updater.git

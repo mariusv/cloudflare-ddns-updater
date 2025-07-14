@@ -72,29 +72,7 @@ jobs:
         
     - name: Build container image
       run: |
-        # Create a simple Dockerfile
-        cat > Dockerfile << 'EOF'
-        FROM debian:bookworm-slim
-        
-        RUN apt-get update && \
-            apt-get install -y python3 python3-requests systemd && \
-            apt-get clean && \
-            rm -rf /var/lib/apt/lists/*
-        
-        COPY cloudflare-ddns-updater_*.deb /tmp/
-        RUN dpkg -i /tmp/cloudflare-ddns-updater_*.deb && \
-            rm /tmp/cloudflare-ddns-updater_*.deb
-        
-        # Create a wrapper script for container use
-        RUN echo '#!/bin/bash\nif [ ! -f /etc/cloudflare-ddns/config.json ]; then\n  echo "Error: /etc/cloudflare-ddns/config.json not found"\n  echo "Mount your config file to /etc/cloudflare-ddns/config.json"\n  exit 1\nfi\nexec /usr/bin/cloudflare-ddns' > /usr/local/bin/docker-entrypoint.sh && \
-            chmod +x /usr/local/bin/docker-entrypoint.sh
-        
-        VOLUME ["/etc/cloudflare-ddns", "/var/cache/cloudflare-ddns"]
-        
-        ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-        EOF
-        
-        # Build the image
+        # Build the image using the Dockerfile in the repo
         docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest .
         
     - name: Log in to Container Registry
