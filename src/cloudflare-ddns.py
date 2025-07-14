@@ -13,7 +13,6 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -44,9 +43,7 @@ class CloudflareDDNS:
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
                 
-            # Support both old single-domain and new multi-domain format
             if 'domain' in config:
-                # Convert old format to new format internally
                 logger.info("Using single-domain configuration format")
                 config = {
                     'api_token': config['api_token'],
@@ -54,8 +51,8 @@ class CloudflareDDNS:
                         'domain': config['domain'],
                         'zone_id': config['zone_id'],
                         'subdomains': config['subdomains'],
-                        'ttl': config.get('ttl'),  # None if not specified
-                        'proxied': config.get('proxied')  # None if not specified
+                        'ttl': config.get('ttl'),
+                        'proxied': config.get('proxied')
                     }]
                 }
             else:
@@ -156,7 +153,6 @@ class CloudflareDDNS:
             
         logger.info(f"Current public IP: {current_ip}")
         
-        # Check if we need to update by comparing with cached IP
         cache_file = Path("/var/cache/cloudflare-ddns/last_ip")
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         
@@ -167,7 +163,6 @@ class CloudflareDDNS:
             except Exception as e:
                 logger.warning(f"Failed to read cached IP: {e}")
         
-        # Process each domain
         total_updates_needed = 0
         total_success = 0
         
@@ -175,12 +170,11 @@ class CloudflareDDNS:
             domain = domain_config['domain']
             zone_id = domain_config['zone_id']
             subdomains = domain_config['subdomains']
-            ttl = domain_config.get('ttl')  # None if not specified
-            proxied = domain_config.get('proxied')  # None if not specified
+            ttl = domain_config.get('ttl')
+            proxied = domain_config.get('proxied')
             
             logger.info(f"Processing domain: {domain}")
             
-            # Process each subdomain
             for i, subdomain in enumerate(subdomains):
                 record_info = self.get_dns_record(zone_id, domain, subdomain)
                 
@@ -190,19 +184,15 @@ class CloudflareDDNS:
                     
                 record_id, current_dns_ip, current_proxied, current_ttl = record_info
                 
-                # Check if update is needed
                 if current_dns_ip == current_ip:
                     logger.info(f"{subdomain}.{domain} already has correct IP ({current_ip})")
                 else:
                     logger.info(f"{subdomain}.{domain} needs update: {current_dns_ip} -> {current_ip}")
                     total_updates_needed += 1
                     
-                    # Use existing proxy status and TTL unless explicitly set in config
-                    # If proxied is not specified in config (None), keep existing value
                     use_proxied = proxied if proxied is not None else current_proxied
                     use_ttl = ttl if ttl is not None else current_ttl
                     
-                    # Log if we're preserving existing settings
                     if proxied is None:
                         logger.debug(f"Preserving existing proxy setting ({current_proxied}) for {subdomain}.{domain}")
                     if ttl is None:
@@ -211,21 +201,17 @@ class CloudflareDDNS:
                     if self.update_dns_record(zone_id, domain, subdomain, record_id, current_ip, use_ttl, use_proxied):
                         total_success += 1
                 
-                # Rate limiting between API calls
                 if i < len(subdomains) - 1:
                     time.sleep(1)
             
-            # Rate limiting between domains
             time.sleep(1)
         
-        # Update cache file if any updates succeeded or IP changed
         if total_success > 0 or (total_updates_needed == 0 and current_ip != last_cached_ip):
             try:
                 cache_file.write_text(current_ip)
             except Exception as e:
                 logger.warning(f"Failed to update cache file: {e}")
         
-        # Report results
         if total_updates_needed == 0:
             logger.info("All DNS records across all domains are already up to date")
         elif total_success == total_updates_needed:
