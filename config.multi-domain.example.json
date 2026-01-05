@@ -4,16 +4,18 @@
         {
             "domain": "example.com",
             "zone_id": "ZONE_ID_FOR_EXAMPLE_COM",
-            "subdomains": ["vpn", "home", "server"],
+            "subdomains": ["@", "vpn", "home", "server"],
             "ttl": 120,
-            "proxied": false
+            "proxied": false,
+            "ipv6": true
         },
         {
             "domain": "another-domain.org",
             "zone_id": "ZONE_ID_FOR_ANOTHER_DOMAIN",
             "subdomains": ["mail", "ftp", "backup"],
             "ttl": 300,
-            "proxied": true
+            "proxied": true,
+            "ipv6": false
         }
     ]
 }

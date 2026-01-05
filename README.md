@@ -1,21 +1,24 @@
 # Cloudflare DDNS Updater
 
-A lightweight Dynamic DNS (DDNS) updater for Cloudflare DNS records. This service automatically updates your DNS A records when your public IP address changes, perfect for home servers, VPNs, and other services behind dynamic IPs.
+A lightweight Dynamic DNS (DDNS) updater for Cloudflare DNS records. This service automatically updates your DNS A and AAAA records when your public IP address changes, perfect for home servers, VPNs, and other services behind dynamic IPs.
 
 Whether you need to keep one subdomain updated or manage multiple domains with different subdomains, this service handles it all from a single configuration.
 
 ## Features
 
-- 🚀 Lightweight Python-based updater
-- 🌐 Supports single or multiple domains in one service
-- 🔒 Secure systemd service with hardening options
-- ⏱️ Configurable update intervals (default: 5 minutes)
-- 📊 Smart updates - only updates when IP actually changes
-- 🔍 Checks actual DNS values to avoid unnecessary API calls
-- 📝 Comprehensive logging to systemd journal
-- 🏗️ Easy installation via Debian package or Docker
-- 🔄 Automatic startup on boot
-- 🛡️ Optional Cloudflare proxy support per domain
+- Lightweight Python-based updater
+- IPv4 (A records) and IPv6 (AAAA records) support
+- Supports single or multiple domains in one service
+- Root domain (@) and subdomain support
+- Secure systemd service with hardening options
+- Configurable update intervals (default: 5 minutes)
+- Smart updates - only updates when IP actually changes
+- Dry-run mode for testing configuration
+- Automatic retry with exponential backoff
+- Comprehensive logging to systemd journal
+- Easy installation via Debian package or Docker
+- Automatic startup on boot
+- Optional Cloudflare proxy support per domain
 
 ## Installation
 
@@ -76,12 +79,14 @@ The service can manage DNS records for a single domain or multiple domains from 
        "zone_id": "YOUR_CLOUDFLARE_ZONE_ID",
        "domain": "example.com",
        "subdomains": [
+           "@",
            "vpn",
            "home",
            "server"
        ],
        "ttl": 120,
-       "proxied": false
+       "proxied": false,
+       "ipv6": false
    }
    ```
 
@@ -93,16 +98,18 @@ The service can manage DNS records for a single domain or multiple domains from 
            {
                "domain": "example.com",
                "zone_id": "ZONE_ID_FOR_EXAMPLE_COM",
-               "subdomains": ["vpn", "home", "server"],
+               "subdomains": ["@", "vpn", "home", "server"],
                "ttl": 120,
-               "proxied": false
+               "proxied": false,
+               "ipv6": true
            },
            {
                "domain": "another-domain.org",
                "zone_id": "ZONE_ID_FOR_ANOTHER_DOMAIN",
                "subdomains": ["mail", "ftp", "backup"],
                "ttl": 300,
-               "proxied": true
+               "proxied": true,
+               "ipv6": false
            }
        ]
    }
@@ -110,16 +117,19 @@ The service can manage DNS records for a single domain or multiple domains from 
 
 ### Configuration Options
 
-- **api_token**: Your Cloudflare API token with DNS edit permissions
-- **zone_id**: The Zone ID for your domain (found in Cloudflare dashboard)
-- **domain**: Your domain name
-- **subdomains**: List of subdomains to keep updated
-- **ttl**: Time-to-live in seconds (minimum 120 for free plans)
-- **proxied**: Whether to proxy traffic through Cloudflare (default: false)
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `api_token` | Yes | - | Cloudflare API token with DNS edit permissions |
+| `zone_id` | Yes | - | Zone ID for your domain (found in Cloudflare dashboard) |
+| `domain` | Yes | - | Your domain name |
+| `subdomains` | Yes | - | List of subdomains to update (use `@` for root domain) |
+| `ttl` | No | Current | Time-to-live in seconds (minimum 120 for free plans) |
+| `proxied` | No | Current | Whether to proxy traffic through Cloudflare |
+| `ipv6` | No | false | Enable IPv6 (AAAA record) updates |
 
 ### Getting Cloudflare Credentials
 
-1. **API Token**: 
+1. **API Token**:
    - Go to [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens)
    - Create a new token with "Zone:DNS:Edit" permissions
    - Scope it to your specific zone
@@ -153,6 +163,28 @@ sudo systemctl start cloudflare-ddns.service
 sudo journalctl -u cloudflare-ddns -f
 ```
 
+### Dry-Run Mode
+
+Test your configuration without making any changes:
+
+```bash
+# Test with default config
+cloudflare-ddns --dry-run
+
+# Test with custom config
+cloudflare-ddns --config /path/to/config.json --dry-run
+```
+
+### Command Line Options
+
+```
+Usage: cloudflare-ddns [OPTIONS]
+
+Options:
+  -c, --config PATH   Path to configuration file (default: /etc/cloudflare-ddns/config.json)
+  --dry-run           Show what would be updated without making changes
+```
+
 ### Service Management
 
 ```bash
@@ -169,13 +201,14 @@ sudo systemctl list-timers cloudflare-ddns.timer
 ## How It Works
 
 1. The service runs every 5 minutes (configurable)
-2. It fetches your current public IP from multiple providers
+2. It fetches your current public IPv4 (and IPv6 if enabled) from multiple providers
 3. For each configured subdomain:
    - Queries Cloudflare for the current DNS record
    - Compares the DNS IP with your actual public IP
    - Updates only if they differ
-4. Caches the last known IP to minimize API calls
-5. Logs all actions to systemd journal
+4. Failed requests are automatically retried with exponential backoff
+5. Caches the last known IP to minimize API calls
+6. Logs all actions to systemd journal
 
 ## Troubleshooting
 
@@ -186,9 +219,11 @@ sudo journalctl -u cloudflare-ddns -f
 
 ### Common Issues
 
-1. **"DNS record not found"**: Ensure the A record exists in Cloudflare before running the updater
-2. **"Invalid API token"**: Check your API token has the correct permissions
-3. **"Failed to get public IP"**: Network connectivity issue or all IP services are down
+1. **"Configuration error: Missing required field"**: Check your config.json has all required fields
+2. **"DNS record not found"**: Ensure the A/AAAA record exists in Cloudflare before running the updater
+3. **"Invalid API token"**: Check your API token has the correct permissions
+4. **"Failed to get public IP"**: Network connectivity issue or all IP services are down
+5. **"IPv6 enabled but could not detect IPv6 address"**: Your network doesn't have IPv6 connectivity
 
 ## Security
 
